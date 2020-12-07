@@ -1,0 +1,57 @@
+﻿@using EasyAdmin.Shared.Common
+@inject IModalService ModalService
+
+    <EditForm Model="@audit" OnValidSubmit="Save">
+
+        <div class="form-group">
+            <label class="control-label" for="adapters">Адаптер</label>
+            <input id="adapters" class="form-control" disabled type="text" value="@audit.Adapter.Name" />
+        </div>
+        <div class="form-group">
+            <label class="control-label" for="datacenters">Датацентр</label>
+            <input id="datacenters" class="form-control" disabled type="text" value="@audit.DatacenterName" />
+        </div>
+        <div class="form-group">
+            <label class="control-label" for="clusters">Кластер</label>
+            <input id="clusters" class="form-control" disabled type="text" value="@audit.ClusterName" />
+        </div>
+        <div class="form-group">
+            <label class="control-label" for="actions">Действие</label>
+            <select id="actions" class="form-control" @bind="audit.AuditActionType">
+                @foreach (var auditAction in AuditActionTypes.AuditActions)
+                {
+                    <option value=@auditAction.Key>@auditAction.Value</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="control-label" for="siteAddress">Срок аудита</label>
+            <InputNumber  id="siteAddress" class="form-control" @bind-Value="@audit.AuditDays"></InputNumber>
+        </div>
+        <button class="btn btn-primary" type="submit"> Сохранить</button>
+    </EditForm>
+@code {
+
+    [CascadingParameter] ModalParameters Parameters { get; set; }
+
+    Audit audit { get; set; }
+    Credentials credentials = new Credentials();
+
+    protected override void OnInitialized()
+    {
+        audit = Parameters.Get<Audit>("audit");
+        
+    }    
+    void Save()
+    {
+        if (audit.AuditDays > 0)
+        {
+            ModalService.Close(ModalResult.Ok(audit));
+        }
+    }
+    void Cancel()
+    {
+        ModalService.Cancel();
+    }
+
+}

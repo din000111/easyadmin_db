@@ -1,0 +1,46 @@
+﻿@typeparam ObjectType
+@using EasyAdmin.Client.Pages.Modals
+@using EasyAdmin.Shared.Common
+@inject IModalService Modal
+@inject HttpClient Http
+
+<button @onclick="Click" class="@Class">@Name</button>
+
+@code {
+    //[Parameter]
+    //public EventCallback<ButtonObject> OnClick { get; set; }
+    [Parameter]
+    public string Name { get; set; }
+    [Parameter]
+    public string ActionUri { get; set; }
+    [Parameter]
+    public string Class { get; set; }
+    [Parameter]
+    public ObjectType ButtonObject { get; set; }
+
+    void Click()
+    {
+        var options = new ModalOptions() { Style = "" };
+        Modal.OnClose += ModalClose;
+        Modal.Show<AreYouSure>(Name);
+    }
+
+    async void ModalClose(ModalResult modalResult)
+    {
+        Modal.OnClose -= ModalClose;
+        if (modalResult.Cancelled)
+        {
+            return;
+        }
+        if (ButtonObject != null && ActionUri != null)
+        {
+            
+            var servicesResponse = await Http.PostJsonAsync<ServicesResponse>(ActionUri, ButtonObject);
+            
+            if (servicesResponse.isSuccess)
+            {
+                Modal.Show<SuccessModal>("Успешно");
+            }
+        }
+    }
+}

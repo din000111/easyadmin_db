@@ -1,0 +1,50 @@
+﻿@using EasyAdmin.Shared.Common
+@inject IModalService ModalService
+@inject HttpClient Http
+
+<EditForm Model="@_newOrganizationUnit" OnValidSubmit="Save">    
+    <div class="form-group">
+        <label class="control-label" for="ouName">Название</label>
+        <InputText id="ouName" class="form-control" @bind-Value="@_newOrganizationUnit.DisplayName"></InputText>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="parentPool">Находится в </label>
+        <Select2 TItem="OrganizationUnit" Id="parentPool" Data="@_organizationUnits" TextExpression="@(item => item.DisplayName)"
+                 Placeholder="Находится в" IsDisabled="@(_organizationUnits == null)"
+                 @bind-Value="@_newOrganizationUnit.Parent">
+        </Select2>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteAddress">Distinguished Name</label>
+        <InputText id="siteAddress" class="form-control" placeholder="OU=GC_HOST_Organization,DC=hostco,DC=ru" @bind-Value="@_newOrganizationUnit.DistinguishedName"></InputText>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteLogin">Название пула</label>
+        <InputText id="siteLogin" class="form-control" placeholder="HOST" @bind-Value="@_newOrganizationUnit.PoolShortName"></InputText>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteLogin">Группа администраторов</label>
+        <InputText id="sitePassword" class="form-control" placeholder="CN=SG_HOST,OU=SG_HOST,DC=hostco,DC=ru" @bind-Value="@_newOrganizationUnit.AdminsGroupCN"></InputText>
+    </div>
+    <button class="btn btn-primary" type="submit"> Сохранить</button>
+</EditForm>
+
+@code {
+    [CascadingParameter] ModalParameters Parameters { get; set; }
+    OrganizationUnit _newOrganizationUnit = new OrganizationUnit();
+
+    List<OrganizationUnit> _organizationUnits;
+
+    protected override void OnInitialized()
+    {
+        _organizationUnits = Parameters.Get<List<OrganizationUnit>>("organizationUnits");
+    }
+    void Save()
+    {
+        ModalService.Close(ModalResult.Ok<OrganizationUnit>(_newOrganizationUnit));
+    }
+    void Cancel()
+    {
+        ModalService.Cancel();
+    }
+}

@@ -1,0 +1,17 @@
+﻿@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Pages.Modals
+
+
+@code {
+    public void HandleBackRespone(BackResponse backResponse, IModalService modal)
+    {
+        if (backResponse.IsSuccess)
+        {
+            modal.Show<SuccessModal>("Запрос отправлен!");
+        }
+        else
+        {
+            modal.Show<ErrorModal>(backResponse.Status);
+        }
+    }
+}

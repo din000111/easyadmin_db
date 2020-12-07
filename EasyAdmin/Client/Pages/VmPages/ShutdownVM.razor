@@ -1,0 +1,54 @@
+﻿@using EasyAdmin.Shared.Common
+@inject IModalService ModalService
+@inject HttpClient Http
+
+<div id="myModal" class="modal fade">
+    <div class="modal-dialog modal-confirm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="icon-box">
+                    <i class="material-icons">&#xE876;</i>
+                </div>
+                <h4 class="modal-title">Выключить ВМ</h4>
+            </div>
+            <div class="modal-body">
+                <p class="text-center">Вы уверены, что хотите выключить @VM.Name</p>
+            </div>
+            <div class="modal-footer">
+                <button @onclick="@Yes" class="btn btn-primary">Да</button>
+                <button @onclick="@Cancel" class="btn btn-secondary">Еще подумаю</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [CascadingParameter] ModalParameters Parameters { get; set; }
+
+    public string Text { get; set; }
+    Func<Task<ServicesResponse>> Func;
+    Vm VM;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Text = Parameters.Get<string>("Text");
+        VM = Parameters.Get<Vm>("VM");
+        Func = async () => await Http.PostJsonAsync<ServicesResponse>("api/vm/shutdown", VM);
+    }
+    async void Yes()
+    {
+        ServicesResponse servicesResponse = await Http.PostJsonAsync<ServicesResponse>("api/vm/shutdown", VM);
+
+
+        //Console.WriteLine(sr.isSuccess);
+        //MovieService.Save(Movie);
+        ModalService.Close(ModalResult.Ok("OK"));
+    }
+
+    void Cancel()
+    {
+        ModalService.Cancel();
+    }
+
+}

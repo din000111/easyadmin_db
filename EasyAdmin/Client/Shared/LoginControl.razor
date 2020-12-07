@@ -1,0 +1,50 @@
+﻿@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Services
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+@page "/loginControl"
+<AuthorizeView>
+    <Authorized>
+        <b>@context?.User?.Claims?.SingleOrDefault(x => x.Type == "given_name")?.Value</b>
+        <button class="ml-md-auto btn btn-primary" @onclick="HandleLogout">Выйти</button>
+    </Authorized>
+    <NotAuthorized>
+    </NotAuthorized>
+</AuthorizeView>
+@code {
+
+    private LoginModel loginModel = new LoginModel();
+    private bool ShowErrors;
+    private string Error = "";
+
+    public User user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        
+    }
+
+    private async Task HandleLogin()
+    {
+        ShowErrors = false;
+
+        var result = await AuthService.Login(loginModel);
+
+        if (result.Successful)
+        {
+            loginModel = null;
+            NavigationManager.NavigateTo("/");
+        }
+        else
+        {
+            Error = result.Error;
+            ShowErrors = true;
+        }
+    }
+    private async Task HandleLogout()
+    {
+        await AuthService.Logout();
+        NavigationManager.NavigateTo("/");
+    }
+}

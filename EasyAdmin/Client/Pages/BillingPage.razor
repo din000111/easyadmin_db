@@ -1,0 +1,409 @@
+﻿@page "/billing"
+
+
+
+
+<div class="container-fluid">
+    
+    <div class="row justify-content-end">
+        
+        <div class="col-lg-8">
+            <div class="row">
+                <div class="col">
+                    <div class="text-center">
+                        <h4 class="text-dark">Список Виртуальных Машин</h4>
+                    </div>
+                    @if (Response == 0)
+                    {
+                        <p><em>Загрузка...</em></p>
+                    }
+                    else if (Response == 1 || Response == 2 || Response == 3)
+                    {
+                        <p><em>...</em></p>
+                    }
+                    else
+                    {
+                        <GridComponent @ref="component" T="Vm" Grid="@cGrid" OnRowClicked="@RowSelected"></GridComponent>
+
+                    }
+                </div>
+            </div>
+            <div class="row justify-content-start">
+                <div class="col-2 d-flex align-items-end">
+                    <MatBlazor.MatButton Unelevated="true" @onclick="HandleRedraw" Class="mb-4">Обновить</MatBlazor.MatButton>
+                </div>
+                <div class="col-7">
+                    <div class="text-center">
+                        <h4 class="text-dark">Диаграмма стоимости</h4>
+                    </div>
+
+                    @if (Response == 1 || Response == 2 || Response == 3)
+                    {
+                        <p><em>...</em></p>
+                    }
+                    else
+                    {
+                        <DoughnutChart @ref="doughnutChart" TItem="double" Type="ChartType.Doughnut" />
+                    }
+                </div>
+            </div>
+
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">Дополнительные сведения</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="small-padding">Имя</td>
+                                    <td class="small-padding">@VmCurrSelName</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Стоимость</td>
+                                    <td class="small-padding">@VmCurrSelTotalCost</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Статус</td>
+                                    <td class="small-padding">@VmCurrSelStatus</td>
+                                </tr>
+                                <tr>
+                                    <td style="width: 250px;" class="small-padding">Адаптер</td>
+                                    <td class="small-padding">@VmCurrSelAdapterName</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Описание</td>
+                                    <td class="small-padding">@VmCurrSelDescription</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Кластер</td>
+                                    <td class="small-padding">@VmCurrSelClusterName</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Датацентр</td>
+                                    <td class="small-padding">@VmCurrSelDatacenterName</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Пул</td>
+                                    <td class="small-padding">@VmCurrSelPoolShortName</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Ядер процессора</td>
+                                    <td class="small-padding">@VmCurrSelCpu</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Оперативная память</td>
+                                    <td class="small-padding">@VmCurrSelMemoryGb</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Размер жёсткого диска</td>
+                                    <td class="small-padding">@VmCurrSelHddSize</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Проект</td>
+                                    <td class="small-padding">@VmCurrSelProject</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Службы</td>
+                                    <td class="small-padding">@VmCurrSelServices</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Домен</td>
+                                    <td class="small-padding">@VmCurrSelDomain</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Управляющий</td>
+                                    <td class="small-padding">@VmCurrSelManager</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Администратор</td>
+                                    <td class="small-padding">@VmCurrSelAdmin</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Владелец</td>
+                                    <td class="small-padding">@VmCurrSelOwner</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Время последнего обновления</td>
+                                    <td class="small-padding">@VmCurrSelLastTimeUpdated</td>
+                                </tr>
+                                <tr>
+                                    <td class="small-padding">Время окончания срока действия</td>
+                                    <td class="small-padding">@VmCurrSelDeadline</td>
+                                </tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+@*------------------------------*@
+
+@inject HttpClient http
+@inject NavigationManager nav
+@inject IMatToaster toaster
+@using Microsoft.Extensions.Primitives
+@using System.Net;
+@using h = Microsoft.AspNetCore.Components.HttpClientJsonExtensions;
+@using MatBlazor
+@code {
+    int Response { get; set; }= 0;
+    string Message { get; set; } = "тест";
+
+    CGrid<Vm> cGrid;
+    Task task;
+    static GridComponent<Vm> component;
+    string VmCurrSelName { get; set; }
+    double VmCurrSelTotalCost { get; set; }
+    string VmCurrSelAdapterName { get; set; }
+    string VmCurrSelStatus { get; set; }
+    string VmCurrSelDescription { get; set; }
+    string VmCurrSelClusterName { get; set; }
+    string VmCurrSelDatacenterName { get; set; }
+    string VmCurrSelPoolShortName { get; set; }
+    int VmCurrSelMemoryGb { get; set; }
+    int VmCurrSelCpu { get; set; }
+    int VmCurrSelHddSize { get; set; }
+    string VmCurrSelProject { get; set; }
+    string VmCurrSelServices { get; set; }
+    string VmCurrSelDomain { get; set; }
+    string VmCurrSelManager { get; set; }
+    string VmCurrSelAdmin { get; set; }
+    string VmCurrSelOwner { get; set; }
+    //    string AuditDate { get; set; }
+    string VmCurrSelDeadline { get; set; }
+    DateTime VmCurrSelLastTimeUpdated { get; set; }
+
+
+
+    public List<Vm> vms;
+
+    DoughnutChart<double> doughnutChart;
+    string[] labels;
+
+    //добавление колонок в DataGrid
+    public static Action<IGridColumnCollection<Vm>> Columns = c =>
+    {
+
+        c.Add(x => x.Name).Titled("Имя ВМ").SetWidth("25%").Css("small-padding");
+        c.Add(x => x.DatacenterName).Titled("Датацентр").SetWidth("10%").Css("small-padding");
+        c.Add(x => x.ClusterName).Titled("Кластер").SetWidth("10%").Css("small-padding");
+        c.Add(x => x.PoolShortName).Titled("Пул").SetWidth("10%").Css("small-padding");
+        c.Add(x => x.TotalCost).Titled("Стоимость").SetWidth("10%").Css("small-padding");
+        c.Add(x => x.Cpu).Titled("Cpu").SetWidth("10%").Css("small-padding");
+        c.Add(x => x.MemoryGb).Titled("Память").SetWidth("10%").Css("small-padding");
+        c.Add(x => x.HddSize).Titled("Диск").SetWidth("10%").Css("small-padding");
+    };
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        HttpResponseMessage response = await http.GetAsync("api/costs/billing");
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            Response = 1;
+            Message = "Сервер: в таблице стоимости найдено более одного значения";
+            Show(MatToastType.Danger);
+
+        }
+        else if (response.StatusCode == HttpStatusCode.NoContent)
+        {
+            Response = 2;
+            Message = "Сервер: в таблице стоимости нет значений или нужное значение не найдено";
+            Show(MatToastType.Danger);
+        }
+
+        else if (response.StatusCode==HttpStatusCode.NotFound)
+        {
+            Response = 3;
+            Message = "Локальная база данных пуста. Проверьте адаптер, затем попробуйте синхронизировать";
+            Show(MatToastType.Warning);
+        }
+        else if (response.StatusCode == HttpStatusCode.OK)
+        {
+            Response = 4;
+            Message = "Сервер: данные успешно получены";
+            Show(MatToastType.Success);
+            await HandleRedraw();
+
+        }
+        else
+        {
+            return;
+        }
+
+    }
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Response == 0 || Response == 1 || Response == 2||Response==3)
+        {
+            return;
+        }
+        else
+        {
+
+            //адрес получения данных для DataGrid (контроллер Costs)
+            var url = nav.BaseUri + "api/costs/grid";
+            var query = new QueryDictionary<StringValues>();
+            //настройка характеристик DataGrid, в том числе url - адрес получения данных
+            var client = new GridClient<Vm>(http, url, query, false, "grid", Columns)
+            .Sortable()
+            .Searchable()
+            .Filterable()
+            .ChangePageSize(true)
+            .Selectable(true)
+            .WithGridItemsCount();
+
+            cGrid = client.Grid;
+
+            task = client.UpdateGrid();
+            await task;
+        }
+
+    }
+
+
+    //цвета секторов в DoughnutChart
+    List<string> backgroundColors = new List<string>
+{
+        ChartColor.FromRgba( 255,94,91,0.7f),
+        ChartColor.FromRgba( 249,61,141,0.7f),
+        ChartColor.FromRgba( 0,129,175,0.7f),
+        ChartColor.FromRgba(255,237,102,0.7f ),
+        ChartColor.FromRgba( 82,72,156,0.7f ),
+        ChartColor.FromRgba( 255,34,12,0.7f ),
+        ChartColor.FromRgba( 246,189,96,0.7f ),
+        ChartColor.FromRgba( 199,203,24,0.7f ),
+        ChartColor.FromRgba( 39,47,111,0.7f ),
+        ChartColor.FromRgba( 153,67,154,0.7f ),
+        ChartColor.FromRgba( 159,79,184,0.7f ),
+        ChartColor.FromRgba( 12,77,142,0.7f ),
+        ChartColor.FromRgba( 96,43,203,0.7f ),
+        ChartColor.FromRgba( 239,107,251,0.7f ),
+        ChartColor.FromRgba( 30,225,129,0.7f ),
+        ChartColor.FromRgba( 234,194,217,0.7f ),
+        ChartColor.FromRgba( 43,105,61,0.7f ),
+        ChartColor.FromRgba( 142,5,54,0.7f ),
+        ChartColor.FromRgba( 19,76,167,0.7f ),
+        ChartColor.FromRgba( 138,217,241,0.7f ),
+    };
+
+    //цвета границ в DoughnutChart
+    List<string> borderColors = new List<string>
+{
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+        ChartColor.FromRgba( 220,220,220, 0.8f ),
+    };
+
+    async Task HandleRedraw()
+    {
+
+        await doughnutChart.Clear();
+        await doughnutChart.AddDataSet(await GetChartDataset());
+        await doughnutChart.AddLabel(labels);
+        await doughnutChart.Update();
+
+    }
+
+    async Task<DoughnutChartDataset<double>> GetChartDataset()
+    {
+        DoughnutChartDataset<double> dataset = new DoughnutChartDataset<double>();
+        dataset.Label = "Виртуальные машины";
+        dataset.BackgroundColor = backgroundColors;
+        dataset.BorderColor = borderColors;
+        dataset.BorderWidth = 1;
+        dataset.Data = await RandomizeData();
+        return dataset;
+    }
+    async Task<List<double>> RandomizeData()
+    {
+        var vms2 = await h.GetJsonAsync<List<Vm>>(http, "api/costs/billing");
+        var filteredVms = vms2.DistinctBy(x => x.PoolShortName).ToList();
+        List<double> data = new List<double>();
+        labels = new string[filteredVms.Count];
+        for (int i = 0; i < filteredVms.Count; i++)
+        {
+            labels[i] = filteredVms[i].PoolShortName;
+            data.Add(vms2.Where(x => x.PoolShortName == filteredVms[i].PoolShortName).Sum(x => x.Cpu * x.Cost.CpuCost + x.MemoryGb * x.Cost.MemoryCost + x.HddSize * x.Cost.HddCost));
+        }
+
+        return data;
+    }
+    async Task ChangeGrid()
+    {
+        var column = ((IGrid)cGrid).Columns.SingleOrDefault(x => x.Name == "DatacenterName");
+        var filter = new GridShared.Filtering.FilterCollection(GridShared.Filtering.GridFilterType.StartsWith.ToString(), "c");
+        await component.AddFilter(column, filter);
+    }
+    protected void RowSelected(object item)
+    {
+        Vm vm = null;
+        if (item.GetType() == typeof(Vm))
+        {
+            vm = (Vm)item;
+        }
+        VmCurrSelName = vm.Name;
+        VmCurrSelTotalCost = vm.Cost.CpuCost * vm.Cpu + vm.Cost.MemoryCost * vm.MemoryGb + vm.Cost.HddCost * vm.HddSize;
+        VmCurrSelAdapterName = vm.Adapter?.Name;
+        VmCurrSelStatus = vm.Status;
+        VmCurrSelDescription = vm.Description;
+        VmCurrSelClusterName = vm.ClusterName;
+        VmCurrSelDatacenterName = vm.DatacenterName;
+        VmCurrSelPoolShortName = vm.PoolShortName;
+        VmCurrSelMemoryGb = vm.MemoryGb;
+        VmCurrSelCpu = vm.Cpu;
+        VmCurrSelHddSize = vm.HddSize;
+        VmCurrSelProject = vm.Project;
+        VmCurrSelServices = vm.Services;
+        VmCurrSelDomain = vm.Domain;
+        VmCurrSelManager = vm.Manager?.DisplayName;
+        VmCurrSelAdmin = vm.Admin?.DisplayName;
+        VmCurrSelOwner = vm.Owner?.DisplayName;
+        VmCurrSelDeadline = vm.Deadline;
+        VmCurrSelLastTimeUpdated = vm.LastTimeUpdated;
+
+        StateHasChanged();
+    }
+    void Show(MatToastType type)
+    {
+        toaster.Add(Message, type);
+    }
+    public static async Task UpdateGrid()
+    {
+        await component.UpdateGrid();
+    }
+}
+
+
+

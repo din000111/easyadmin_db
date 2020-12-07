@@ -1,0 +1,36 @@
+﻿@typeparam SelectOption
+
+<input list="@Id" placeholder="@PlaceHolder" required
+        class="form-control" style="width: 100%" @onchange="HandleSelect"/>
+<datalist id="@Id">
+
+    @foreach (var item in Items)
+    {
+        @Options(item)
+    }
+</datalist>
+
+
+@code {
+    [Parameter]
+    public IEnumerable<SelectOption> Items { get; set; }
+
+    [Parameter]
+    public string Id { get; set; }
+    [Parameter]
+    public RenderFragment<SelectOption> Options { get; set; }
+
+    [Parameter]
+    public string PlaceHolder { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnChange { get; set; }
+
+    void HandleSelect (ChangeEventArgs changeEventArgs)
+    {
+        var text = changeEventArgs.Value.ToString();
+        Console.WriteLine(Items.ElementAt(0).ToString());
+        OnChange.InvokeAsync(changeEventArgs.Value.ToString());
+    }
+
+}

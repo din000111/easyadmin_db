@@ -1,0 +1,54 @@
+﻿@page "/login"
+@using EasyAdmin.Client.Services
+@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Pages.Modals
+@inject IAuthService AuthService
+@inject IModalService ModalService
+@inject NavigationManager NavigationManager
+
+<div class="login-container login">
+    <div class="wrapper fadeInDown">
+        <div id="formContent" class="mb-2">
+            <!-- Tabs Titles -->
+            <!-- Icon -->
+            <div class="fadeIn first p-5">
+                <img class="w-75" src="images/logo.jpg" id="icon" alt="ХОСТ EasyAdmin" />
+            </div>
+
+            <!-- Login Form -->
+            <form @onsubmit="HandleLogin">
+                <input type="text" id="login" name="login" disabled="@FormDisabled" placeholder="имя пользователя" @bind="loginModel.Username" />
+                <input type="password" id="password" name="login" disabled="@FormDisabled" placeholder="пароль" @bind="@loginModel.Password" />
+                <input type="submit" class="fadeIn fourth" disabled="@FormDisabled" value="войти">
+            </form>
+
+        </div>
+    </div>
+</div>
+
+
+@code {
+    private string Error = "";
+    private LoginModel loginModel = new LoginModel();
+    private string FormDisabled = null;
+
+    private async Task HandleLogin()
+    {
+        FormDisabled = "disabled";
+
+        var result = await AuthService.Login(loginModel);
+
+        if (result.Successful)
+        {
+            loginModel = null;
+            NavigationManager.NavigateTo("/");
+        }
+        else
+        {
+            ModalService.Show<ErrorModal>(result.Error);
+            FormDisabled = null;
+            Error = result.Error;
+        }
+    }
+
+}

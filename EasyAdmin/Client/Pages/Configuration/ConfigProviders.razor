@@ -1,0 +1,50 @@
+﻿@page "/config/providers"
+@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Services
+@inject IApiService Api
+<h3>Поддерживаемые провайдеры</h3>
+<div class="col-lg-6 col-md-12">
+    <table class="table">
+        <thead>
+            <tr>
+                <td>Название</td>
+                <td>Версия</td>
+            </tr>
+        </thead>
+        <tbody>
+            @if (providers == null)
+            {
+                <tr>
+                    <td colspan="5" class="text-center">Загружаю</td>
+                </tr>
+            }
+            else if (providers.Count == 0)
+            {
+                <tr>
+                    <td colspan="5" class="text-center">Данных нет</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (Provider provider in providers)
+                {
+                    <tr>
+                        <td>@provider.Name</td>
+                        <td>@provider.Version</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+
+@code {
+
+    List<Provider> providers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        providers = (await Api.GetProvidersListAsync()).Result;
+    }
+}

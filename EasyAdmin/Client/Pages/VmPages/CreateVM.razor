@@ -1,0 +1,392 @@
+﻿@page "/createVM"
+@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Pages.Modals
+@using EasyAdmin.Client.Services
+@inject HttpClient Http
+@inject IModalService Modal
+@inject NavigationManager Nav
+@inject IApiService Api
+
+<style type="text/css"></style>
+<h3>Создать виртуальную машину "@_newVm.FullName"</h3>
+
+<div class="panel-body no-padding col-lg-9 col-md-12">
+    <EditForm Model="@_newVm" id="vm-request-form" data-toggle="validator" OnValidSubmit="@(RequestVmModal)">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <fieldset class="border p-2">
+            <legend class="w-auto">Расположение</legend>
+            <div class="row">
+                <div class="col-sm-12 col-md-6 col-lg-3">
+                    <div class="form-group">
+                        <label for="adapter">Адаптер</label>
+                        <Select2 TItem="Adapter" Id="adapter" Data="@_adapters" TextExpression="@(item => item.Name)"
+                                 Placeholder="Выберите адаптер" IsDisabled="@(_adapters == null)"
+                                 ValueExpression="@(()=> _newVm.Adapter)" ValueChanged="(item => AdapterSelected(item))">
+                        </Select2>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-6 col-lg-3">
+                    <div class="form-group">
+                        <label for="datacenter">Датацентр</label>
+                        <Select2 TItem="Datacenter" Id="datacenter" Data="@_datacenters" TextExpression="@(item => item.Name)"
+                                 Placeholder="Выберите датацентр" IsDisabled="@(_datacenters == null)"
+                                 ValueExpression="@(()=> _newVm.Datacenter)" ValueChanged="(item => DatacenterSelected(item))">
+                        </Select2>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-6 col-lg-3">
+                    <div class="form-group">
+                        <label for="cluster">Кластер</label>
+                        <Select2 TItem="Cluster" Id="cluster" Data="@_clusters" TextExpression="@(item => item.Name)" @ref="clusterSelect2"
+                                 Placeholder="Выберите кластер" IsDisabled="@(_clusters == null)"
+                                 ValueExpression="@(()=> _newVm.Cluster)" ValueChanged="(item => ClusterSelected(item))">
+                        </Select2>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-6 col-lg-3">
+                    <div class="form-group">
+                        <label for="pool">Подразделение</label>
+                        <Select2 TItem="OrganizationUnit" Id="pool" Data="@_ous" TextExpression="@(item => item.DisplayName)"
+                                 Placeholder="Выберите пул" IsDisabled="@(_ous == null)"
+                                 ValueExpression="@(()=> _newVm.Pool)"
+                                 ValueChanged="(item => PoolSelected(item))">
+                        </Select2>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+        <fieldset class="border p-2">
+            <legend class="w-auto">Параметры</legend>
+            <div class="row">
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label for="vmname">Название ВМ</label>
+                        <InputText type="text" name="vmname" id="vmname" class="form-control"
+                                   placeholder="Форматы: xxxxxxxx, xxxxxx-#, xxxxx-##"
+                                   pattern='([A-Z,a-z,0-9]{2,8}$|[A-Z,a-z,0-9]{2,6}-[1-9]{1}$|[A-Z,a-z,0-9]{2,5}-[0-9]{1,2}$)'
+                                   maxlength='8' minlength="2" required
+                                   data-validation-error-msg="Неправильный формат"
+                                   @bind-Value="@_newVm.Name" />
+                    </div>
+                </div>
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label for="guestos">Гостевая ОС</label>
+                        <Select2 TItem="Template" Id="guestos" Data="@_templates" TextExpression="@(item => item.Description?? item.Name)"
+                                 Placeholder="Выберите шаблон" IsDisabled="@(_templates == null)"
+                                 ValueExpression="@(()=> _newVm.Template)"
+                                 ValueChanged="(item => TemplateSelected(item))">
+                        </Select2>
+                    </div>
+                </div>
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label for="network">Сеть</label>                        
+                            <Select2 TItem="Network" Id="network" Data="@_networks" @bind-Value="@_newVm.Network"
+                                     TextExpression="@(item => item.Description?? item.Name)" Placeholder="Выберите сеть"
+                                     IsDisabled="@(_networks == null)">
+                            </Select2>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+        <fieldset class="border p-2">
+            <legend class="w-auto">Ресурсы</legend>
+            <div class="row">
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label class="control-label" for="ramsize">Объем RAM, Гб</label>
+                        <InputNumber class="form-control" id="ramsize" name="ramsize" required @bind-Value="@_newVm.MemoryGb" />
+                    </div>
+                </div>
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label class="control-label" for="cpusize">Количество ядер vCPU</label>
+                        <InputNumber class="form-control" id="cpusize" name="cpusize" required @bind-Value="@_newVm.Cpu" />
+                    </div>
+                </div>
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label class="control-label" for="hddsize">Объем HDD, Гб</label>
+                        <InputNumber class="form-control" disabled=@hddDisabled id="hddsize" name="hddsize" required @bind-Value="@_newVm.HddSize" />
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+        <fieldset class="border p-2">
+            <legend class="w-auto">Доступ</legend>
+            <div class="row">
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label class="control-label" for="manager">Менеджер</label>
+                        <Select2 TItem="User"
+                                 Id="manager"
+                                 GetPagedData="@(query => Task.FromResult(
+                                    _users
+                                        .Where(x => query.Term.Length >= 3 && x.DisplayName.Contains(query.Term, StringComparison.OrdinalIgnoreCase))
+                                        .Skip((query.Page - 1) * query.Size)
+                                        .Take(query.Size)
+                                        .ToList()))"
+                                 @bind-Value="@_newVm.Manager"
+                                 TextExpression="@(item => item.DisplayName)"
+                                 Placeholder="Выберите менеджера"
+                                 IsDisabled="@(_users == null)">
+                        </Select2>
+                    </div>
+                    <p class="alert-info">@_newVm.Admin</p>
+                </div>
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label class="control-label" for="owner">Владелец</label>
+                        <Select2 TItem="User"
+                                 Id="owner"
+                                 GetPagedData="@(query => Task.FromResult(
+                                    _users
+                                        .Where(x => query.Term.Length >= 3 && x.DisplayName.Contains(query.Term, StringComparison.OrdinalIgnoreCase))
+                                        .Skip((query.Page - 1) * query.Size)
+                                        .Take(query.Size)
+                                        .ToList()))"
+                                 @bind-Value="@_newVm.Owner"
+                                 TextExpression="@(item => item.DisplayName)"
+                                 Placeholder="Выберите владельца"
+                                 IsDisabled="@(_users == null)">
+                        </Select2>
+                    </div>
+                </div>
+                <div class="col-md-12 col-lg-4">
+                    <div class="form-group">
+                        <label class="control-label" for="admin">Админ</label>
+                        <Select2 TItem="User"
+                                 Id="admin"
+                                 GetPagedData="@(query => Task.FromResult(
+                                    _users
+                                        .Where(x => query.Term.Length >= 3 && x.DisplayName.Contains(query.Term, StringComparison.OrdinalIgnoreCase))
+                                        .Skip((query.Page - 1) * query.Size)
+                                        .Take(query.Size)
+                                        .ToList()))"
+                                 @bind-Value="@_newVm.Admin"
+                                 TextExpression="@(item => item.DisplayName)"
+                                 Placeholder="Выберите администратора"
+                                 IsDisabled="@(_users == null)">
+                        </Select2>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+        <fieldset class="border p-2">
+            <legend class="w-auto">Другое</legend>
+            <div class="row">
+                <div class="col-sm-4">
+                    <div class="form-group">
+                        <label for="project">Проект</label>
+                        <InputText class="form-control" type="text" required name="project" id="project" @bind-Value="@_newVm.Project" />
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="form-group">
+                        <label for="services">Сервисы</label>
+                        <InputText class="form-control" type="text" name="services" id="services" @bind-Value="@_newVm.Services" />
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="form-group">
+                        <label for="domain">Домен</label>
+                        <InputText class="form-control" type="text" name="domain" id="domain" @bind-Value="@_newVm.Domain">hostco.ru</InputText>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+        <footer style="margin:1em">
+            <div class="row">
+                <div class="col-xs-4">
+                    <button class="btn btn-info btn-pretty" id="request" type="submit">
+                        <i id="loader" class="fa fa-circle-o faa-burst faa-fast animated"></i>
+                        Запросить
+                    </button>
+                </div>
+                <div class="col-xs-8 ml-5 text-center">
+                    <blockquote>
+                        @if (_costs == null)
+                        {
+                            <p>Загрузка параметров стоимости</p>
+                        }
+                        else if (_costs.Count == 0)
+                        {
+                            <p>Параметры стоимости датацентров не определены</p>
+                        }
+                        else if (_newVm.Datacenter == null)
+                        {
+                            <p>Для расчета стоимости ВМ нужно выбрать датацентр</p>
+                        }
+                        else
+                        {
+                            @if (_newVm.Cost != null)
+                            {
+                                <p>
+                                    Стоимость выбранной конфигурации: <b>
+                                        <span class="text-red-light"
+                                              id="vmprice">
+
+                                            @(_newVm.Cost.CpuCost * _newVm?.Cpu + _newVm.Cost.MemoryCost * _newVm?.MemoryGb + _newVm.Cost.HddCost * _newVm?.HddSize)
+
+                                        </span>
+                                    </b>
+                                    руб.
+                                </p>
+                            }
+                            else
+                            {
+                                <p>Для данного датаценстра стоимость не определена</p>
+                            }
+                        }
+
+                    </blockquote>
+                </div>
+            </div>
+        </footer>
+    </EditForm>
+</div>
+
+
+@code {
+    List<Adapter> _adapters;
+    List<Datacenter> _datacenters;
+
+
+    List<OrganizationUnit> _ous;
+    List<Cluster> _clusters;
+    List<Template> _templates;
+    List<Network> _networks;
+    List<Cost> _costs;
+    List<User> _users;
+    string hddDisabled;
+
+    Vm _newVm = new Vm();
+    bool isSuccess;
+    string errorMessage;
+    Select2<Cluster> clusterSelect2;
+
+    string _clusterFieldSelected = "selected";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _adapters = (await Api.GetAdaptersListAsync()).Result;
+
+            if (_adapters.Count == 0)
+            {
+                Modal.Show<ErrorModal>($"Найдено 0 адаптеров. Сперва создайте адаптер в панели конфигурации");
+            }
+            _ous = (await Api.GetOUsListAsync()).Result;
+            _users = (await Api.GetUsersListAsync()).Result;
+            _costs = (await Api.GetCostsListAsync()).Result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private void RequestVmModal()
+    {
+        Modal.OnClose += RequestVm;
+        Modal.Show<AreYouSure>("Создать ВМ?");
+
+    }
+    private async void RequestVm (ModalResult modalResult)
+    {
+        Modal.OnClose -= RequestVm;
+        if (modalResult.Cancelled) return;
+
+        var createVmAttempt = await Api.CreateVmAsync(_newVm);
+        if (createVmAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Запрос на создание ВМ отправлен!");
+            Nav.NavigateTo("/VMList");
+        }
+        else
+        {
+            Modal.Show<ErrorModal>($"Не удалось создать ВМ. {createVmAttempt.errorMessage}");
+        }
+    }
+
+    private async void AdapterSelected(Adapter adapter)
+    {
+        if (adapter == null)
+        {
+            return;
+        }
+        _newVm.Adapter = adapter;
+        _datacenters = (await Api.GetDatacentersListAsync(adapter)).Result;
+        _newVm.Cluster = null;
+        _clusters = null;
+        _newVm.Cost = null;
+        _newVm.Template = null;
+        _templates = null;
+        _newVm.Network = null;
+        _networks = null;
+        StateHasChanged();
+    }
+
+    private async void DatacenterSelected(Datacenter datacenter)
+    {
+        if (datacenter == null)
+        {
+            return;
+        }
+        datacenter.Adapter = _newVm.Adapter;
+        _newVm.Datacenter = datacenter;
+        _newVm.Cost = _costs.SingleOrDefault(x => x.DatacenterId == datacenter.Id);
+        _newVm.Cluster = null;
+        clusterSelect2.Change(null);
+        clusterSelect2.Refresh();
+        _clusters = (await Api.GetClustersListAsync(datacenter)).Result;
+        _newVm.Template = null;
+        _templates = null;
+        _newVm.Network = null;
+        _networks = null;
+        StateHasChanged();
+    }
+
+    private async void ClusterSelected(Cluster cluster)
+    {
+        if (cluster == null)
+        {
+            return;
+        }
+        cluster.Datacenter = _newVm.Datacenter;
+        _newVm.Cluster = cluster;
+
+        _templates = (await Api.GetTemplatesListAsync(cluster)).Result;
+        _networks = (await Api.GetNetworksListAsync(cluster)).Result;
+        StateHasChanged();
+    }
+    private void TemplateSelected(Template template)
+    {
+        if (template == null)
+        {
+            return;
+        }
+        _newVm.Template =template;
+        if (_newVm.Template.Name != "Blank")
+        {
+            hddDisabled = "disabled";
+        }
+        else
+        {
+            hddDisabled = null;
+        }
+    }
+    private void PoolSelected(OrganizationUnit pool)
+    {
+        if (pool == null)
+        {
+            return;
+        }
+        _newVm.Pool = pool;
+        _newVm.PoolShortName = pool.PoolShortName;
+        StateHasChanged();
+    }
+}

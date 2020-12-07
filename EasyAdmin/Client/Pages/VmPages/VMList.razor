@@ -1,0 +1,343 @@
+﻿@page "/VMList"
+@using EasyAdmin.Client.Pages.Modals
+@using EasyAdmin.Shared.Common
+@using Microsoft.AspNetCore.Authorization
+@using EasyAdmin.Client.Services
+@inject IModalService Modal
+@inject IApiService Api
+@inject HttpClient Http
+@inject IJSRuntime js
+
+@attribute [Authorize]
+
+<h3>Список виртуальных машин</h3>
+
+<div class="btn-group mb-2">
+    <button class="btn btn-dark" disabled="@disableButton" @onclick="OnOffVm">@(selectedVM?.Status == "down" ? "Включить" : "Выключить")</button>
+    <button class="btn btn-dark" disabled="@disableButton" @onclick="HandleProlongVm">Продлить</button>
+    <button class="btn btn-dark" disabled="@disableButton" @onclick="ShowEditVM">Редактировать</button>
+    <button class="btn btn-dark" disabled="@disableButton" @onclick="BackupVm">РК</button>
+    <button class="btn btn-dark" disabled="@disableButton">Изменить ресурсы</button>
+    <button class="btn btn-dark" disabled="@((selectedVM?.Status == "up" || selectedVM?.Status == "poweredOn") ? null : "disabled")" @onclick="GetConsole">Консоль</button>
+    <button class="btn btn-dark" disabled="@disableButton" @onclick="RemoveVm">Удалить</button>
+    <button class="btn btn-dark" disabled="@ButtonChoosePool">Выбрать пул</button>
+    <button class="btn btn-info" @onclick="Refresh">⟳</button>
+</div>
+
+@if (task.IsCompleted)
+{
+    <GridComponent @ref="@component" T="Vm" Grid="@grid" OnRowClicked="RowSelected"></GridComponent>
+}
+
+else
+{
+    <Loading />
+}
+@*else
+    {
+        <DataTable @ref="dataTable" Items="@vms" TableItem="Vm" PageSize="10" OnSelect="HandleSelect">
+            <GridHeader>
+                <th></th>
+                <th>Название</th>
+                <th>Проект</th>
+                <th>Пул</th>
+                <th>Администратор</th>
+                <th>Владелец</th>
+                <th>Менеджер</th>
+                <th>Срок</th>
+                <th>vCPU</th>
+                <th>RAM</th>
+                <th>HDD</th>
+            </GridHeader>
+            <GridRow>
+                <td>
+                    @switch (context.Status)
+                    {
+                        case "up":
+                            <span class="fas fa-arrow-circle-up text-success" title="Включена" aria-hidden="true"></span>
+                            break;
+                        case "down":
+                            <span class="fas fa-arrow-circle-down text-danger" title="Выключена" aria-hidden="true"></span>
+                            break;
+                        case "poweredOn":
+                            <span class="fas fa-arrow-circle-up text-success" title="Включена" aria-hidden="true"></span>
+                            break;
+                        case "poweredOff":
+                            <span class="fas fa-arrow-circle-down text-danger" title="Выключена" aria-hidden="true"></span>
+                            break;
+                        case "powering_down":
+                            <span class="fas fa-angle-double-down text-danger text-center" title="Выключается" aria-hidden="true"></span>
+                            break;
+                        case "image_locked":
+                            <span class="fas fa-lock text-danger text-center" title="Машина создается" aria-hidden="true"></span>
+                            break;
+                        case "powering_up":
+                            <span class="fas fa-angle-double-up text-success text-center" title="Включается" aria-hidden="true"></span>
+                            break;
+                        case "wait_fot_launch":
+                            <span class="fas fa-angle-double-up text-success text-center" title="Ожидание запуска" aria-hidden="true"></span>
+                            break;
+                        case "not_responding":
+                            <span class="fas fa-ban text-danger text-center" title="Включается" aria-hidden="true"></span>
+                            break;
+                        case "paused":
+                            <span class="fas fa-pause text-warning text-center" title="Пауза" aria-hidden="true"></span>
+                            break;
+                        default:
+                            @context.Status
+                            break;
+                    }
+                </td>
+                <td>@context.Name</td>
+                <td>@context.Project</td>
+                <td>@context.PoolShortName</td>
+                <td>@context.Admin?.DisplayName </td>
+                <td>@context.Owner?.DisplayName</td>
+                <td>@context.Manager?.DisplayName</td>
+                <td>@context.Deadline</td>
+                <td>@context.Cpu</td>
+                <td>@context.MemoryGb</td>
+                <td>@context.HddSize</td>
+            </GridRow>
+        </DataTable>
+        }
+*@
+
+
+@inject NavigationManager nav
+@using Microsoft.Extensions.Primitives
+@code {
+    //datagrid
+    private Task task = new Task(() => { });
+    CGrid<Vm> grid;
+    GridComponent<Vm> component;
+
+    public static Action<IGridColumnCollection<Vm>> Columns = columns =>
+    {
+
+        columns.Add(vm => vm.Status).Encoded(false).Sanitized(false).RenderValueAs(vm => vm.HtmlStatus).Titled("").SetWidth("5%").Css("small-padding");
+        columns.Add(vm => vm.Name).Titled("Имя ВМ").SetWidth("25%").Css("small-padding");
+        columns.Add(vm => vm.Project).Titled("Проект").SetWidth("10%").Css("small-padding");
+        columns.Add(vm => vm.PoolShortName).Titled("Пул").SetWidth("10%").Css("small-padding");
+        columns.Add(vm => vm.Admin.DisplayName).Titled("Админ").SetWidth("15%").Css("small-padding");
+        columns.Add(vm => vm.Owner.DisplayName).Titled("Владелец").SetWidth("15%").Css("small-padding");
+        columns.Add(vm => vm.Manager.DisplayName).Titled("Менеджер").SetWidth("15%").Css("small-padding");
+        columns.Add(vm => vm.Cpu).SetWidth("10%").Css("small-padding");
+        columns.Add(vm => vm.MemoryGb).SetWidth("10%").Css("small-padding");
+        columns.Add(vm => vm.HddSize).SetWidth("10%").Css("small-padding");
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        string uri = nav.BaseUri + "api/vm/grid";
+        var query = new QueryDictionary<StringValues>();
+        var client = new GridClient<Vm>(Http, uri, query, false, "vmlistgrid", Columns)
+        .ChangePageSize(true)
+        .Sortable()
+        .Filterable()
+        .Searchable()
+        .Selectable(true);
+        grid = client.Grid;
+        task = client.UpdateGrid();
+        await task;
+
+    }
+
+    void RowSelected(object item)
+    {
+        if (item.GetType() == typeof(Vm))
+        {
+            selectedVM = (Vm)item;
+        }
+        disableButton = (selectedVM == null) ? "disabled" : null;
+        StateHasChanged();
+    }
+
+
+    DataTable<Vm> dataTable;
+    List<Vm> vms;
+    List<BackendTask> backendTasks;
+    Vm selectedVM;
+    List<ITableItem> tableItems = new List<ITableItem>();
+    ServicesResponse servicesResponse = new ServicesResponse();
+    ModalsHandler modalsHandler = new ModalsHandler();
+
+    List<User> users = new List<User>();
+
+    string disableButton = "disabled";
+    string ButtonChoosePool = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        backendTasks = (await Api.GetBackendTasksListAsync()).Result;
+        Console.WriteLine(backendTasks.Count);
+        await Http.GetAsync("api/vm/all");
+        users = await Http.GetJsonAsync<List<User>>("api/users/all");
+    }
+    async void BackupVm()
+    {
+        var parameters = new ModalParameters();
+        if (selectedVM == null) return;
+        Console.WriteLine(selectedVM?.AdapterId);
+        Console.WriteLine(selectedVM?.Adapter?.Address);
+        var diskAttachmentsRequest = await Api.GetVmDiskAttachmentsAsync(selectedVM);
+        if (diskAttachmentsRequest.isSuccess)
+        {
+            Console.WriteLine(diskAttachmentsRequest.Result);
+        }
+        else
+        {
+            Console.WriteLine(diskAttachmentsRequest.errorMessage);
+        }
+
+    }
+    void ShowEditVM()
+    {
+        var parameters = new ModalParameters();
+        if (selectedVM == null) return;
+        parameters.Add("VM", selectedVM);
+        parameters.Add("Users", users);
+        Modal.OnClose += HandleEditVm;
+        Modal.Show<EditVm>("Редактировать ВМ", parameters);
+    }
+    void HandleEditVm(ModalResult modalResult)
+    {
+        Modal.OnClose -= HandleEditVm;
+        if (modalResult.Cancelled)
+        {
+            Refresh();
+            return;
+        }
+        selectedVM = (Vm)modalResult.Data;
+        Modal.OnClose += EditVm;
+        Modal.Show<AreYouSure>("Вы уверены что хотите обновить параметры?");
+        component.UpdateGrid();
+    }
+    async void EditVm(ModalResult modalResult)
+    {
+        Modal.OnClose -= EditVm;
+        if (modalResult.Cancelled)
+        {
+            return;
+        }
+        var response = await Http.PostJsonAsync<BackResponse>("api/vm/update", selectedVM);
+        modalsHandler.HandleBackRespone(response, Modal);
+        await Refresh();
+    }
+
+    #region OnOffButton
+
+    void OnOffVm()
+    {
+        Modal.OnClose += ModalOnOffVm;
+        Modal.Show<AreYouSure>("Включить/выключить ВМ");
+    }
+
+    async void ModalOnOffVm(ModalResult modalResult)
+    {
+        Modal.OnClose -= ModalOnOffVm;
+        if (modalResult.Cancelled)
+        {
+            return;
+        }
+        var servicesResponse = await Http.PostJsonAsync<ServicesResponse>("api/vm/changestate", selectedVM);
+        if (servicesResponse.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Успешно");
+            await Refresh();
+        }
+    }
+    #endregion
+
+    #region RemoveButton
+
+    void HandleSelect(Vm vm)
+    {
+        selectedVM = vm;
+        Console.WriteLine(selectedVM.Status);
+        disableButton = (selectedVM == null) ? "disabled" : null;
+        StateHasChanged();
+    }
+
+    void RemoveVm()
+    {
+        var parameters = new ModalParameters();
+        Modal.OnClose += ModalRemoveVm;
+        parameters.Add("Text", $"удалить ВМ {selectedVM.Name}?");
+        Modal.Show<AreYouSure>("Удалить ВМ", parameters);
+    }
+
+    async void ModalRemoveVm(ModalResult modalResult)
+    {
+        Modal.OnClose -= ModalRemoveVm;
+        if (modalResult.Cancelled)
+        {
+            return;
+        }
+        servicesResponse = await Http.PostJsonAsync<ServicesResponse>("api/vm/remove", selectedVM);
+        if (!servicesResponse.isSuccess)
+        {
+            var parameters = new ModalParameters();
+            parameters.Add("Text", servicesResponse.errorMessage);
+            Modal.Show<ErrorModal>("Ошибка", parameters);
+        }
+        Modal.Show<SuccessModal>("Успешно");
+        await Refresh();
+    }
+
+    #endregion
+
+    async Task Refresh()
+    {
+        //vms.Clear();
+        await Http.GetAsync("api/vm/all?id=1");
+        //dataTable.Refresh(vms);
+        await component.UpdateGrid();
+    }
+
+    void HandleProlongVm()
+    {
+        Modal.Show<AreYouSure>("Продлить выбранную вм?");
+        Modal.OnClose += ProlongVm;
+    }
+    async void ProlongVm(ModalResult modalResult)
+    {
+        Modal.OnClose -= ProlongVm;
+        if (modalResult.Cancelled) return;
+        var prolongVmAttempt = await Api.ProlongVmAsync(selectedVM);
+        if (prolongVmAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Успех");
+            await Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>("Не удалось продлить вм");
+        }
+    }
+    async void GetConsole()
+    {
+        var console = await Http.PostJsonAsync<GraphicsConsole>("api/vm/console", selectedVM);
+        //if (!servicesResponse.isSuccess)
+        //{
+        //    Console.WriteLine(servicesResponse.errorMessage);
+        //}
+        //else
+        //{
+        //    Console.WriteLine(servicesResponse.resultObject.ToString());
+        //}
+        //var console = (GraphicsConsole)servicesResponse.resultObject;
+        switch (console.Type)
+        {
+            case GraphicsConsoleType.File:
+                await FileUtil.SaveAs(js, $"{selectedVM.Name}.vv", console.Base64ConsoleFile);
+                break;
+            case GraphicsConsoleType.Web:
+                var url = console.ConsoleUri.ToString();
+                await js.InvokeAsync<object>("open", url, "_blank");
+                break;
+            default:
+                break;
+        }
+    }
+}

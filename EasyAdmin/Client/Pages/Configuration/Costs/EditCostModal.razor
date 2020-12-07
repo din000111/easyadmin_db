@@ -1,0 +1,51 @@
+﻿@using EasyAdmin.Shared.Common
+@inject IModalService ModalService
+@inject HttpClient Http
+
+
+<div class="simple-form">
+    <div class="form-group">
+        <label for="adapter">Адаптер</label>
+        <input @bind="@cost.Adapter.Name" type="text" disabled="disabled" class="form-control" id="adapter" />
+    </div>
+    <div class="form-group">
+        <label for="datacenter">Датацентр</label>
+        <input @bind="@cost.DatacenterName" type="text" disabled="disabled" class="form-control" id="datacenter" />
+    </div>
+    <div class="form-group">
+        <label for="cpuCost">Стоимость ЦП</label>
+        <input @bind="@cost.CpuCost" type="text" class="form-control" id="cpuCost" />
+    </div>
+    <div class="form-group">
+        <label for="mempryCost">Стоимость ОЗУ</label>
+        <input @bind="@cost.MemoryCost" type="text" class="form-control" id="mempryCost" />
+    </div>
+    <div class="form-group">
+        <label for="gddCost">Стоимость дисков</label>
+        <input @bind="@cost.HddCost" type="text" class="form-control" id="hddCost" />
+    </div>
+    <button @onclick="@Save" class="btn btn-primary">Сохранить</button>
+    <button @onclick="@Cancel" class="btn btn-secondary">Отмена</button>
+</div>
+@code {
+
+    [CascadingParameter] ModalParameters Parameters { get; set; }
+
+    Cost cost { get; set; }
+
+    protected override void OnInitialized()
+    {
+        cost = Parameters.Get<Cost>("cost");
+    }
+
+    void Save()
+    {
+        ModalService.Close(ModalResult.Ok(cost));
+    }
+
+    void Cancel()
+    {
+        ModalService.Cancel();
+    }
+
+}

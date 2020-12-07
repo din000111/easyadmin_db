@@ -1,0 +1,156 @@
+﻿@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Shared
+@using EasyAdmin.Client.Pages.Modals
+@using EasyAdmin.Client.Services
+@inject IModalService Modal
+@inject IApiService Api
+@inject HttpClient Http
+
+
+<EditForm Model="@_newAudit" OnValidSubmit="Save">
+
+    <div class="form-group">
+        <label class="control-label" for="adapters">Адаптер</label>
+        @if (_adapters != null)
+        {
+            <Select2My Id="adapters" Items="_adapters" PlaceHolder="Выберите адаптер" Context="adapter" OnChange="HandleAdapterSelected">
+                <Options>
+                    <option>@adapter.Name</option>
+                </Options>
+            </Select2My>
+        }
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="datacenters">Датацентр</label>
+        @if (_datacenters != null)
+        {
+            <Select2My Id="datacenters" Items="_datacenters" PlaceHolder="Выберите датацентр" Context="datacenter" OnChange="HandleDatacenterSelected">
+                <Options>
+                    <option>@datacenter.Name</option>
+                </Options>
+            </Select2My>
+        }
+        else
+	    {
+	         <input disabled class="form-control" type="text" value="Выберите датацентр">
+	    }
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="clusters">Кластер</label>
+        @if (_clusters != null)
+        {
+            <Select2My Id="clusters" Items="_clusters" PlaceHolder="Выберите кластер" Context="clusters" OnChange="HandleClusterSelected">
+                <Options>
+                    <option>@clusters.Name</option>
+                </Options>
+            </Select2My>
+        }
+        else
+        {
+            <input disabled class="form-control" type="text" value="Выберите кластер">
+        }
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="actions">Действие</label>
+        <select id="actions" class="form-control" @bind="_newAudit.AuditActionType">
+            @*@onchange="HandleActionSelected">*@
+
+            @foreach (var auditAction in AuditActionTypes.AuditActions)
+            {
+                <option value=@auditAction.Key>@auditAction.Value</option>
+            }
+
+        </select>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteAddress">Срок аудита</label>
+        <InputNumber id="siteAddress" class="form-control" @bind-Value="@_newAudit.AuditDays"></InputNumber>
+    </div>
+    <button class="btn btn-primary" type="submit"> Сохранить</button>
+</EditForm>
+
+
+
+@code {
+    [CascadingParameter] ModalParameters Parameters { get; set; }
+    Audit _newAudit = new Audit();
+
+    List<Adapter> _adapters;
+    Adapter selectedAdapter;
+
+    List<Datacenter> _datacenters;
+    Datacenter selectedDatacenter;
+    string DCSelectDisabled = "disabled";
+
+    List<Cluster> _clusters;
+    Cluster selectedCluster;
+    string ClusterSelectDisabled = "disabled";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _adapters = (await Api.GetAdaptersListAsync()).Result;
+    }
+
+    void Save()
+    {
+        _newAudit.AdapterId = selectedAdapter.Id;
+
+        _newAudit.DatacenterId = selectedDatacenter.Id;
+        _newAudit.DatacenterName = selectedDatacenter.Name;
+
+        _newAudit.ClusterId = selectedCluster.Id;
+        _newAudit.ClusterName = selectedCluster.Name;
+        Modal.Close(ModalResult.Ok<Audit>(_newAudit));
+    }
+
+    void Cancel()
+    {
+        Modal.Cancel();
+    }
+
+    async void HandleAdapterSelected(string args)
+    {
+        if (!string.IsNullOrWhiteSpace(args))
+        {
+            selectedAdapter = _adapters.SingleOrDefault(x => x.Name == args);
+        }
+        if (selectedAdapter != null)
+        {
+            _datacenters = (await Api.GetDatacentersListAsync(selectedAdapter)).Result;
+            DCSelectDisabled = null;
+            StateHasChanged();
+        }
+        else
+        {
+            DCSelectDisabled = "disabled";
+        }
+    }
+
+    async void HandleDatacenterSelected(string args)
+    {
+        if (!string.IsNullOrWhiteSpace(args))
+        {
+            selectedDatacenter = _datacenters.SingleOrDefault(x => x.Name == args);
+        }
+        if (selectedDatacenter == null)
+        {
+            return;
+        }
+        selectedDatacenter.Adapter = selectedAdapter;
+        if (selectedDatacenter != null)
+        {
+            _clusters = (await Api.GetClustersListAsync(selectedDatacenter)).Result;
+            Console.WriteLine(_clusters.Count);
+            StateHasChanged();
+        }
+    }
+    void HandleClusterSelected(string args)
+    {
+        if (!string.IsNullOrWhiteSpace(args))
+        {
+            selectedCluster = _clusters.SingleOrDefault(x => x.Name == args);
+            StateHasChanged();
+        }
+    }
+}

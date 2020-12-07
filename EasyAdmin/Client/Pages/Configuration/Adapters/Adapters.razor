@@ -1,0 +1,179 @@
+﻿@page "/config/adapters"
+@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Pages.Modals
+@using EasyAdmin.Client.Services
+@inject IModalService Modal
+@inject IApiService Api
+@inject HttpClient Http
+    <AuthorizeView Context="authContext" Roles="Admin">
+        <Authorized>
+                <h3>Конфигурация</h3>
+                <div class="btn-group mb-2">
+                    <button class="btn btn-primary" @onclick="AddAdapter">Добавить адаптер</button>
+                    <button class="btn btn-warning" disabled="@ButtonsDisabled" @onclick="EditAdapter">Изменить</button>
+                    <button class="btn btn-danger" disabled="@ButtonsDisabled" @onclick="RemoveAdapter">Удалить</button>
+                    <button class="btn btn-info" disabled="@ButtonsDisabled" @onclick="TestAdapter">Проверить</button>
+                    <button class="btn btn-info" disabled="@ButtonsDisabled" @onclick="TurnOffAdapter">Отключить</button>
+                    <button class="btn btn-info" @onclick="Refresh">⟳</button>
+                </div>
+
+                <div class="col-lg-6 col-md-12">
+                    @if (adapters == null)
+                    {
+                        <Loading Title="Загрузка" />
+                    }
+                    else
+                    {
+                        <DataTable Items="adapters" TableItem="Adapter" PageSize="5" OnSelect="HandleSelect" @ref="dataTable">
+                            <GridHeader>
+                                <th></th>
+                                <th>Название</th>
+                                <th>Адрес</th>
+                                <th>Провайдер</th>
+                                <th>Статус</th>
+                            </GridHeader>
+                            <GridRow>
+                                <td>
+                                    @switch (context.IsOK)
+                                    {
+                                        case true:
+                                            <span class="fas fa-arrow-circle-up text-success" title="Включен" aria-hidden="true"></span>
+                                            break;
+                                        case false:
+                                            <span class="fas fa-arrow-circle-down text-danger" title="Выключен" aria-hidden="true"></span>
+                                            break;
+                                    }
+                                </td>
+                                <td>@context.Name</td>
+                                <td><a href="@context.uri" target="_blank">@context.Address</a></td>
+                                <td>@context.Provider?.Name</td>
+                                <td>@context.Status</td>
+                            </GridRow>
+                        </DataTable>
+                    }
+                </div>
+        </Authorized>
+        <NotAuthorized>            
+            <h1>Вы не обладаете правами для просмотра этой страницы.</h1>            
+        </NotAuthorized>
+    </AuthorizeView>
+@code {
+
+    List<Adapter> adapters;
+    List<Provider> providers;
+    Adapter newAdapter = new Adapter();
+    Adapter selectedAdapter;
+    string ButtonsDisabled = "disabled";
+    DataTable<Adapter> dataTable;
+    bool isSuccess;
+    string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        adapters = (await Api.GetAdaptersListAsync()).Result;
+        providers = (await Api.GetProvidersListAsync()).Result;
+        newAdapter.Credentials = new Credentials();
+    }
+    void HandleSelect(Adapter adapter)
+    {
+        selectedAdapter = adapter;
+        ButtonsDisabled = adapter == null ? "disabled" : null;
+    }
+    private void AddAdapter()
+    {
+        var parameters = new ModalParameters();
+        parameters.Add("providers", providers);
+
+        Modal.Show<AddAdapterModal>("Создать адаптер", parameters);
+        Modal.OnClose += SaveAdapter;
+    }
+    async void SaveAdapter(ModalResult modalResult)
+    {
+        Modal.OnClose -= SaveAdapter;
+        if (modalResult.Cancelled) return;
+        var adapter = (Adapter)modalResult.Data;       
+
+        var adapterCreateAttempt = await Api.CreateAdapterAsync(adapter);
+        if (adapterCreateAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Успех!");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>($"Не удалось создать адаптер. {adapterCreateAttempt.errorMessage}");
+        }
+    }
+
+    private void EditAdapter()
+    {
+        var parameters = new ModalParameters();
+        parameters.Add("adapter", selectedAdapter);
+        parameters.Add("providers", providers);
+        Modal.Show<EditAdapter>("Редактировать адаптер", parameters);
+        Modal.OnClose += UpdateAdapter;
+    }
+    async void UpdateAdapter(ModalResult modalResult)
+    {
+        Modal.OnClose -= UpdateAdapter;
+        if (modalResult.Cancelled) return;        
+        var updatedAdapter = (Adapter)modalResult.Data;
+        var updateAdapterAttempt = await Api.UpdateAdapterAsync(updatedAdapter);
+        if (updateAdapterAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Изменения адаптера сохранены");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>("Не удалось сохранить изменения адаптера");
+        }
+    }
+
+    private async void TestAdapter()
+    {
+        var testAdapterAttempt = await Api.TestAdapterAsync(selectedAdapter);
+        if (!testAdapterAttempt.isSuccess && !testAdapterAttempt.Result)
+        {
+            Modal.Show<ErrorModal>("Адаптер не может быть включен");
+        }
+        Refresh();
+    }
+    
+    private void RemoveAdapter()
+    {
+        Modal.Show<AreYouSure>("Удалить адаптер");
+        Modal.OnClose += DeleteAdapter;
+    }
+    async void DeleteAdapter(ModalResult modalResult)
+    {
+        Modal.OnClose -= DeleteAdapter;
+        if (modalResult.Cancelled) return;        
+        var deleteAdapterAttempt = await Api.DeleteAdapterAsync(selectedAdapter);
+        if (deleteAdapterAttempt.isSuccess && deleteAdapterAttempt.Result)
+        {
+            Modal.Show<SuccessModal>("Удаптер успешно удален");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>("Не удалось удалить адаптер");
+        }
+    }
+
+    async void TurnOffAdapter()
+    {
+        var turnOffAdapterAttempt = await Api.TurnOffAdapterAsync(selectedAdapter);
+        if (!turnOffAdapterAttempt.isSuccess && !turnOffAdapterAttempt.Result)
+        {
+            Modal.Show<ErrorModal>("Адаптер не может быть выключен");
+        }
+        Refresh();
+    }
+
+    async void Refresh()
+    {
+        adapters = (await Api.GetAdaptersListAsync()).Result;
+        dataTable.Refresh(adapters);
+    }
+}

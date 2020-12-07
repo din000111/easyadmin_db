@@ -1,0 +1,135 @@
+﻿@page "/config/audits"
+@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Shared
+@using EasyAdmin.Client.Pages.Modals
+@using EasyAdmin.Client.Services
+@inject IModalService Modal
+@inject IApiService Api
+
+
+<AuthorizeView Context="authContext" Roles="Admin">
+    <Authorized>
+        <h3>Конфигурация</h3>
+        <div class="btn-group mb-2">
+            <button class="btn btn-primary" @onclick="GetModalCreateAudit">Настроить аудит</button>
+            <button class="btn btn-warning" disabled="@ButtonsDisabled" @onclick="GetModalEditAudit">Изменить</button>
+            <button class="btn btn-danger" disabled="@ButtonsDisabled" @onclick="GetModalRemoveAudit">Удалить</button>
+            <button class="btn btn-info" @onclick="Refresh">⟳</button>
+        </div>
+        <div class="col-lg-6 col-md-12">
+            @if (_audits == null)
+            {
+                <Loading Title="Загрузка" />
+            }
+            else
+            {
+                <DataTable @ref="dataTable" Items="_audits" PageSize="5" TableItem="Audit" OnSelect="HandleSelect">
+                    <GridHeader>
+                        <th>Адаптер</th>
+                        <th>Датацентр</th>
+                        <th>Кластер</th>
+                        <th>Действие</th>
+                        <th>Срок</th>
+                    </GridHeader>
+                    <GridRow>
+                        <td>@context.Adapter?.Name</td>
+                        <td>@context.DatacenterName</td>
+                        <td>@context.ClusterName</td>
+                        <td>@context.AuditActionName</td>
+                        <td>@context.AuditDays</td>
+                    </GridRow>
+                </DataTable>
+            }
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <h1>Вы не обладаете правами для просмотра этой страницы.</h1>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    DataTable<Audit> dataTable;
+    List<Audit> _audits;
+    Audit _selectedAudit;
+    string ButtonsDisabled = "disabled";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _audits = (await Api.GetAuditsListAsync()).Result;
+    }
+
+    void HandleSelect(Audit audit)
+    {
+        _selectedAudit = audit;
+        ButtonsDisabled = audit == null ? "disabled" : null;
+    }
+    void GetModalCreateAudit()
+    {
+        Modal.Show<AddAuditModal>("Настроить аудит");
+        Modal.OnClose += CreateAudit;
+    }
+    async void CreateAudit(ModalResult modalResult)
+    {
+        Modal.OnClose -= CreateAudit;
+        if (modalResult.Cancelled) return;
+        var audit = (Audit)modalResult.Data;        
+        var createAuditAttempt = await Api.CreateAuditAsync(audit);
+        if (createAuditAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Настройки аудита сохранены");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>("Не удалось сохранить настройки аудита");
+        }
+    }
+    async void GetModalEditAudit()
+    {
+        var parameters = new ModalParameters();
+        parameters.Add("audit", _selectedAudit);
+        Modal.Show<EditAuditModal>("Редактировать адаптер", parameters);
+        Modal.OnClose += UpdateAudit;
+    }
+    async void UpdateAudit(ModalResult modalResult)
+    {
+        Modal.OnClose -= UpdateAudit;
+        if (modalResult.Cancelled) return;        
+        var updatedAudit = (Audit)modalResult.Data;
+        var updateAuditAttempt = await Api.UpdateAuditAsync(updatedAudit);
+        if (updateAuditAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Изменения настроек аудита сохранены");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>($"Не удалось сохранить изменения настроек аудита. {updateAuditAttempt.errorMessage}");
+        }
+    }
+    void GetModalRemoveAudit()
+    {
+        Modal.Show<AreYouSure>("Удалить настройки аудита?");
+        Modal.OnClose += DeleteAudit;
+    }
+    async void DeleteAudit(ModalResult modalResult)
+    {
+        Modal.OnClose -= DeleteAudit;
+        if (modalResult.Cancelled) return;        
+        var deleteAuditAttempt = await Api.DeleteAuditAsync(_selectedAudit);
+        if (deleteAuditAttempt.isSuccess)
+        {
+            Refresh();
+            Modal.Show<SuccessModal>("Настройки аудита успешно удалены");
+        }
+        else
+        {
+            Modal.Show<ErrorModal>("Не удалось удалить настройки аудита");
+        }
+    }
+    async void Refresh()
+    {
+        _audits = (await Api.GetAuditsListAsync()).Result;
+        dataTable.Refresh(_audits);
+    }
+}

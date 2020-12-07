@@ -1,0 +1,56 @@
+﻿@using EasyAdmin.Shared.Common
+@inject IModalService ModalService
+@inject HttpClient Http
+
+
+<EditForm Model="@_newAdapter" OnValidSubmit="Save">
+    <div class="form-group">
+        <label class="control-label" for="siteName">Название</label>
+        <InputText id="siteName" class="form-control" @bind-Value="@_newAdapter.Name"></InputText>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteProvider">Провайдер</label>
+        <Select2 TItem="Provider" Id="siteProvider" Data="@_providers" TextExpression="@(item => item.Name)"
+                 Placeholder="Выберите провайдера" IsDisabled="@(_providers == null)"
+                 @bind-Value="@_newAdapter.Provider">
+        </Select2>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteAddress">Адрес</label>
+        <InputText id="siteAddress" class="form-control" @bind-Value="@_newAdapter.Address"></InputText>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteLogin">Имя пользователя</label>
+        <InputText id="siteLogin" class="form-control" @bind-Value="@_newAdapter.Credentials.Username"></InputText>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteLogin">Пароль</label>
+        <InputText id="sitePassword" class="form-control" type="password" @bind-Value="@_newAdapter.Credentials.Password"></InputText>
+    </div>
+    <button class="btn btn-primary" type="submit"> Сохранить</button>
+</EditForm>
+
+
+
+@code {
+    [CascadingParameter] ModalParameters Parameters { get; set; }
+    Adapter _newAdapter = new Adapter();
+
+    List<Provider> _providers;
+
+    protected override void OnInitialized()
+    {
+        _providers = Parameters.Get<List<Provider>>("providers");
+        _newAdapter.Credentials = new Credentials();
+    }
+
+    void Save()
+    {
+        ModalService.Close(ModalResult.Ok<Adapter>(_newAdapter));
+    }
+
+    void Cancel()
+    {
+        ModalService.Cancel();
+    }
+}

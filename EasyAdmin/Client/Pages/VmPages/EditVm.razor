@@ -1,0 +1,135 @@
+﻿@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Pages.Modals
+@inject IModalService Modal
+
+
+<div class="col-12 d-flex">
+    <div class="col-lg-6">
+        <div class="simple-form">
+            <h4>Старые значения</h4>
+            <div class="form-group">
+                <label>Администратор ВМ</label>
+                <input class="form-control" disabled="disabled" value="@oldParam.Admin?.DisplayName" />
+            </div>
+            <div class="form-group">
+                <label>Владелец ВМ</label>
+                <input class="form-control" disabled="disabled" value="@oldParam.Owner?.DisplayName" />
+            </div>
+            <div class="form-group">
+                <label>Менеджер ВМ</label>
+                <input class="form-control" disabled="disabled" value="@oldParam.Manager?.DisplayName" />
+            </div>
+            <div class="form-group">
+                <label>Проект</label>
+                <input class="form-control" disabled="disabled" value="@oldParam.Project" />
+            </div>
+            <div class="form-group">
+                <label>Сервисы</label>
+                <input class="form-control" disabled="disabled" value="@oldParam.Services" />
+            </div>
+            <div class="form-group">
+                <label>Домен</label>
+                <input class="form-control" disabled="disabled" value="@oldParam.Domain" />
+            </div>
+        </div>
+
+    </div>
+    <div class="col-lg-6">
+        <div class="simple-form">
+            <h4>Новые значения</h4>
+            <div class="form-group">
+                <label class="control-label" for="manager">Менеджер</label>
+                @if (users != null)
+                {
+                    <Select2 TItem="User"
+                             Id="manager"
+                             Data="@users"
+                             @bind-Value="@vM.Manager"
+                             TextExpression="@(item => item.DisplayName)"
+                             Placeholder="Выберите менеджера">
+                    </Select2>
+                }
+            </div>
+            <div class="form-group">
+                <label class="control-label" for="owner">Владелец</label>
+                @if (users != null)
+                {
+                    <Select2 TItem="User"
+                             Id="owner"
+                             Data="@users"
+                             @bind-Value="@vM.Owner"
+                             TextExpression="@(item => item.DisplayName)"
+                             Placeholder="Выберите владельца">
+                    </Select2>
+                }
+            </div>
+            <div class="form-group">
+                <label class="control-label" for="admin">Администратор</label>
+                @if (users != null)
+                {
+                    <Select2 TItem="User"
+                             Id="admin"
+                             Data="@users"
+                             @bind-Value="@vM.Admin"
+                             TextExpression="@(item => item.DisplayName)"
+                             Placeholder="Выберите администратора">
+                    </Select2>
+                }
+            </div>
+            <div class="form-group">
+                <label for="project">Проект</label>
+                <input @bind="@vM.Project" type="text" class="form-control" id="project" />
+            </div>
+            <div class="form-group">
+                <label for="services">Сервисы</label>
+                <input @bind="@vM.Services" type="text" class="form-control" id="services" />
+            </div>
+            <div class="form-group">
+                <label for="domain">Домен</label>
+                <input @bind="@vM.Domain" type="text" class="form-control" id="domain" />
+            </div>
+        </div>
+    </div>
+
+</div>
+<div class="col-12 text-center">
+    <button @onclick="@SaveVM" class="btn btn-primary">Отправить</button>
+    <button @onclick="@Cancel" class="btn btn-secondary">Отмена</button>
+</div>
+
+@code {
+
+    [CascadingParameter] ModalParameters Parameters { get; set; }
+
+    int MovieId { get; set; }
+    Vm vM { get; set; }
+    List<User> users { get; set; }
+    Vm oldParam;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        vM = Parameters.Get<Vm>("VM");
+        users = Parameters.Get<List<User>>("Users");
+        oldParam = new Vm()
+        {
+            Admin = vM.Admin,
+            Manager = vM.Manager,
+            Owner = vM.Owner,
+            Project = vM.Project,
+            Services = vM.Services,
+            Domain = vM.Domain
+        };
+    }
+
+
+    void SaveVM()
+    {
+        Modal.Close(ModalResult.Ok(vM));
+    }
+
+    void Cancel()
+    {
+        Modal.Cancel();
+    }
+}

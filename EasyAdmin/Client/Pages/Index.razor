@@ -1,0 +1,157 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Authorization
+@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Services
+@inject HttpClient Http
+@inject IAuthService AuthService
+
+
+@attribute [Authorize]
+    <MatBlazor.MatButton @onclick="Sync" Unelevated="true">Синхронизировать</MatBlazor.MatButton>
+@*-----*@
+<div class="row mt-2">
+    <div class="col col-lg-6">
+        <div class="row">
+            <div class="col-sm-6 offset-sm-0">
+                <div class="row">
+                    <div class="col" style="text-align: center;">
+                        <h1 style="text-align: center;">@vms.Count</h1>
+                    </div>
+                    <div class="col" style="text-align: center;"><span class="fas fa-desktop fa-4x text-success"></span></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h4 style="text-align: center;font-size: 18px;"><strong>Общее количество виртуальных машин</strong></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="row">
+                    <div class="col">
+                        <h1 style="text-align: center;">@myVms.Count</h1>
+                    </div>
+                    <div class="col" style="text-align: center;"><span class="fas fa-desktop fa-4x text-primary"></span></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h4 style="text-align: center;font-size: 18px;"><strong>Количество ваших виртуальных машин</strong></h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-6">
+                <div class="row">
+                    <div class="col" style="text-align: center;">
+                        <h1 style="text-align: center;">@vms.Sum(x => x.Cpu)</h1>
+                    </div>
+                    <div class="col" style="text-align: center;"><span class="fas fa-server fa-4x text-success"></span></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h4 style="text-align: center;font-size: 18px;"><strong>Общее потребление vCPU</strong></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="row">
+                    <div class="col">
+                        <h1 style="text-align: center;">@myVms.Sum(x => x.Cpu)</h1>
+                    </div>
+                    <div class="col" style="text-align: center;"><span class="fas fa-server fa-4x text-primary"></span></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h4 style="text-align: center;font-size: 18px;"><strong>Потребление vCPU вашими ВМ</strong></h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-6">
+                <div class="row">
+                    <div class="col" style="text-align: center;">
+                        <h1 style="text-align: center;">@vms.Sum(x => x.MemoryGb)</h1>
+                    </div>
+                    <div class="col" style="text-align: center;"><span class="fas fa-microchip fa-4x text-success"></span></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h4 style="text-align: center;font-size: 18px;"><strong>Общее потребление RAM (Гб)</strong></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="row">
+                    <div class="col">
+                        <h1 style="text-align: center;">@myVms.Sum(x => x.MemoryGb)</h1>
+                    </div>
+                    <div class="col" style="text-align: center;"><span class="fas fa-microchip fa-4x text-primary"></span></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h4 style="text-align: center;font-size: 18px;"><strong>Потребление RAM вашими ВМ</strong></h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-6">
+                <div class="row">
+                    <div class="col" style="text-align: center;">
+                        <h1 style="text-align: center;">@vms.Sum(x => x.HddSize)</h1>
+                    </div>
+                    <div class="col" style="text-align: center;"><span class="fas fa-hdd fa-4x text-success"></span></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h4 style="text-align: center;font-size: 18px;"><strong>Общее потребление HDD (Гб)</strong></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="row">
+                    <div class="col">
+                        <h1 style="text-align: center;">@myVms.Sum(x => x.HddSize)</h1>
+                    </div>
+                    <div class="col" style="text-align: center;"><span class="fas fa-hdd fa-4x text-primary"></span></div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h4 style="text-align: center;font-size: 18px;"><strong>Потребление HDD вашими ВМ (Гб)</strong></h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@code {
+
+    //VM.VM[] vms;
+    //Host[] hosts;
+    List<Vm> vms = new List<Vm>();
+    List<Vm> myVms = new List<Vm>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthService.GetAuthenticationStateAsync();
+        var user = authState?.User?.Claims.SingleOrDefault(x => x.Type == "unique_name").Value;
+
+
+        vms = await Http.GetJsonAsync<List<Vm>>("api/vm/getfull");
+        foreach (var vm in vms)
+        {
+            if (vm.ManagerId == user || vm.OwnerId == user || vm.AdminId == user)
+            {
+                myVms.Add(vm);
+            }
+        }
+    }
+    async Task Sync()
+    {
+        await Http.GetAsync("api/vm/sync");
+        vms = await Http.GetJsonAsync<List<Vm>>("api/vm/getfull");
+    }
+
+}
+

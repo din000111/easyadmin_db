@@ -1,0 +1,103 @@
+﻿@page "/config/orgstructure"
+
+@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Services
+@using EasyAdmin.Client.Pages.Modals
+
+@inject IModalService Modal
+@inject IApiService Api
+    <AuthorizeView Context="authContext" Roles="Admin">
+        <Authorized>
+            @if (organizationUnits == null)
+            {
+                <Loading />
+            }
+            else
+            {
+                <div class="btn-group mb-2">
+                    <button class="btn btn-primary" @onclick="GetModalCreateOU">Добавить подразделение</button>
+                    <button class="btn btn-warning" disabled="@ButtonsDisabled" @onclick="GetModalEditOU">Изменить</button>
+                    <button class="btn btn-danger" disabled="@ButtonsDisabled" @onclick="GetModalRemoveOu">Удалить</button>
+                </div>
+                <DataTable Items="organizationUnits" Context="ou" OnSelect="HandleSelect" TableItem="OrganizationUnit" @ref="dataTable">
+                    <GridHeader>
+                        <th>Название</th>
+                        <th>Находится в</th>
+                        <th>DN</th>
+                        <th>Название пула</th>
+                        <th>Группа администраторов</th>
+                    </GridHeader>
+                    <GridRow>
+                        <td>@ou.DisplayName</td>
+                        <td>@ou.Parent?.DisplayName</td>
+                        <td>@ou.DistinguishedName</td>
+                        <td>@ou.PoolShortName</td>
+                        <td>@ou.AdminsGroupCN</td>
+                    </GridRow>
+                </DataTable>
+            }
+        </Authorized>
+        <NotAuthorized>
+            <h1>Вы не обладаете правами для просмотра этой страницы.</h1>
+        </NotAuthorized>
+    </AuthorizeView>
+
+
+@code {
+    List<OrganizationUnit> organizationUnits;
+    OrganizationUnit selectedOu;
+    string ButtonsDisabled = "disabled";
+    DataTable<OrganizationUnit> dataTable;
+
+    protected override async Task OnInitializedAsync()
+    {
+        organizationUnits = (await Api.GetOUsListAsync()).Result;
+    }
+    void HandleSelect(OrganizationUnit organizationUnit)
+    {
+        selectedOu = organizationUnit;
+        ButtonsDisabled = selectedOu == null ? "disabled" : null;
+    }
+    void GetModalCreateOU()
+    {
+        var parameters = new ModalParameters();
+        parameters.Add("organizationUnits", organizationUnits);
+
+        Modal.Show<AddOrganizationUnitModal>("Создать поздразделение", parameters);
+        Modal.OnClose += CreateOU;
+    }
+    async void CreateOU(ModalResult modalResult)
+    {
+        Modal.OnClose -= CreateOU;
+        if (modalResult.Cancelled) return;
+        var organizationUnit = (OrganizationUnit)modalResult.Data;
+
+        var ouCreateAttempt = await Api.CreateOUAsync(organizationUnit);
+        if (ouCreateAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Успех!");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>($"Не удалось создать адаптер. {ouCreateAttempt.errorMessage}");
+        }
+    }
+    void GetModalEditOU()
+    {
+
+    }
+    void GetModalRemoveOu()
+    {
+
+    }
+    void DeleteOU()
+    {
+
+    }
+    async void Refresh()
+    {
+        organizationUnits = (await Api.GetOUsListAsync()).Result;
+        dataTable.Refresh(organizationUnits);
+    }
+}

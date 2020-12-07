@@ -1,0 +1,64 @@
+﻿@using EasyAdmin.Shared.Common
+<table class="table" >
+    <thead>
+        <tr>
+            @foreach (var td in Thead)
+            {
+                <td>@td</td>
+            }
+            <td>Действия</td>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Rows == null)
+    {
+        <tr>
+            <td colspan="5" class="text-center">Загружаю</td>
+        </tr>
+    }
+    else if (Rows.Count == 0)
+    {
+        <tr>
+            <td colspan="5" class="text-center">Данных нет</td>
+        </tr>
+    }
+    else
+    {
+        @foreach (var row in Rows)
+        {
+            <tr>
+                @foreach (var td in row.Items)
+                {
+                    <td>@td</td>
+                }
+                <td>
+                    <button class="btn btn-warning" @onclick="@(()=>HandleEdit(row))">Изменить</button>
+                    <button class="btn btn-danger" @onclick="@(()=>HandleDelete(row))">Удалить</button>
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+@code {
+
+    [Parameter]
+    public List<string> Thead { get; set; }
+
+    [Parameter]
+    public List<ITableItem> Rows { get; set; }
+
+    [Parameter]
+    public EventCallback<ITableItem> OnEdit { get; set; }
+    [Parameter]
+    public EventCallback<ITableItem> OnDelete { get; set; }
+
+    void HandleEdit(ITableItem item)
+    {
+        OnEdit.InvokeAsync(item);
+    }
+    void HandleDelete(ITableItem item)
+    {
+        OnDelete.InvokeAsync(item);
+    }
+}

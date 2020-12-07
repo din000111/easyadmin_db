@@ -1,0 +1,102 @@
+﻿@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Services
+@inject IModalService ModalService
+@inject IApiService Api
+
+<div class="modal-body">
+
+    <div class="form-group">
+        <label class="control-label" for="costAdapter">Провайдер</label>
+        <select id="costAdapter" class="form-control" @onchange="@AdapterSelected">
+            <option disabled selected value> -- адаптер -- </option>
+            @if (_adapters != null)
+            {
+                @foreach (var adapter in _adapters)
+                {
+                    <option value=@(adapter.Id)>@adapter.Name</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="costDatacenter">Провайдер</label>
+        <select id="costDatacenter" class="form-control" @onchange="DatacenterSelected" disabled="@_datacenterDisabled">
+            <option disabled selected value> -- датацентр -- </option>
+            @if (_datacenters != null)
+            {
+                @foreach (var datacenter in _datacenters)
+                {
+                    <option value=@(datacenter.Id)>@datacenter.Name</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteAddress">Стоимость ядра процессора</label>
+        <input id="siteAddress" class="form-control" @bind="@_newCost.CpuCost" />
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteLogin">Стоимость Гб оперативной памяти</label>
+        <input id="siteLogin" class="form-control" @bind="@_newCost.MemoryCost" />
+    </div>
+    <div class="form-group">
+        <label class="control-label" for="siteLogin">Стоимость Гб дисковой памяти</label>
+        <input id="sitePassword" class="form-control" @bind="@_newCost.HddCost" />
+    </div>
+
+    <button class="btn btn-primary" type="submit" @onclick="@SaveCost"> Сохранить</button>
+    <button @onclick="@Cancel" class="btn btn-secondary">Еще подумаю</button>
+    <br />
+</div>
+
+
+@code {
+    [CascadingParameter] ModalParameters Parameters { get; set; }
+    Cost _newCost = new Cost();
+    List<Adapter> _adapters;
+    List<Datacenter> _datacenters;
+    private Adapter _selectedAdapter;
+    private string _datacenterDisabled = "disabled";
+
+    protected override void OnInitialized()
+    {
+        _newCost = Parameters.Get<Cost>("newCost");
+        _adapters = Parameters.Get<List<Adapter>>("adapters");
+    }
+
+    private async void AdapterSelected(ChangeEventArgs changeEventArgs)
+    {
+        if (int.TryParse(changeEventArgs.Value.ToString(), out var temp))
+        {
+            _selectedAdapter = _adapters.SingleOrDefault(x => x.Id == temp);
+        }
+        if (_selectedAdapter != null && _selectedAdapter.Id != 0)
+        {
+            _datacenters = (await Api.GetDatacentersListAsync(_selectedAdapter)).Result;
+            _datacenterDisabled = null;
+            _newCost.AdapterId = _selectedAdapter.Id;
+            StateHasChanged();
+        }
+        else
+        {
+            _datacenterDisabled = "disabled";
+        }
+    }
+
+    private void DatacenterSelected(ChangeEventArgs changeEventArgs)
+    {
+        var selectedDatacenterId = changeEventArgs.Value.ToString();
+        var selectedDatacenter = _datacenters.SingleOrDefault(x => x.Id == selectedDatacenterId);
+        _newCost.DatacenterId = selectedDatacenter.Id;
+        _newCost.DatacenterName = selectedDatacenter.Name;
+    }
+    void SaveCost()
+    {
+        ModalService.Close(ModalResult.Ok<Cost>(_newCost));
+    }
+
+    void Cancel()
+    {
+        ModalService.Cancel();
+    }
+}

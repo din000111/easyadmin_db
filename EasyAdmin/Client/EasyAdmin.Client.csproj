@@ -1,0 +1,54 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <LangVersion>8.0</LangVersion>
+    <RazorLangVersion>3.0</RazorLangVersion>
+    <BlazorLinkOnBuild>false</BlazorLinkOnBuild>
+  </PropertyGroup>
+  <!--TODO добавлено-->
+  <Target Name="_RemoveSatelliteAssemblies" BeforeTargets="_ResolveBlazorRuntimeDependencies">
+    <ItemGroup>
+      <_BlazorDependencyInput Remove="@(_BlazorDependencyInput-&gt;WithMetadataValue('AssetType', 'resources'))" />
+    </ItemGroup>
+  </Target>
+  <!---->
+  <ItemGroup>
+    <PackageReference Include="Blazored.LocalStorage" Version="2.1.1" />
+    <PackageReference Include="Blazored.Modal" Version="3.1.0" />
+    <PackageReference Include="blazorise.charts" Version="0.9.0.1" />
+    <PackageReference Include="blazorpro.spinkit" Version="1.2.0" />
+    <PackageReference Include="ChartJs.Blazor" Version="1.0.3" />
+    <PackageReference Include="Json.Net" Version="1.0.18" />
+    <PackageReference Include="matblazor" Version="2.7.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor" Version="3.1.0-preview4.19579.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor.Build" Version="3.1.0-preview4.19579.2" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor.HttpClient" Version="3.1.0-preview4.19579.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor.DevServer" Version="3.1.0-preview4.19579.2" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="3.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="3.1.1" />
+    <PackageReference Include="NEvaldas.Blazor.Select2" Version="0.1.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="5.6.0" />
+    <!--добавлено-->
+    <PackageReference Include="GridBlazor" Version="1.6.8" />
+    <PackageReference Include="morelinq" Version="3.3.2" />
+    
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\EasyAdmin.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Components\" />
+    <Folder Include="JsLib\" />
+  </ItemGroup>
+  <Target Name="FixBlazorConfigForDocker" AfterTargets="GenerateBlazorMetadataFile" Condition="'$(Configuration)' == 'Release'">
+    <WriteLinesToFile File="$(BlazorMetadataFilePath)" Lines="EasyAdmin.Client.csproj" Overwrite="true" Encoding="Unicode" />
+    <WriteLinesToFile File="$(BlazorMetadataFilePath)" Lines="$(OutDir)$(AssemblyName).dll" Overwrite="false" Encoding="Unicode" />
+    <WriteLinesToFile File="$(BlazorMetadataFilePath)" Condition="'$(BlazorRebuildOnFileChange)'=='true'" Lines="autorebuild:true" Overwrite="false" Encoding="Unicode" />
+    <WriteLinesToFile File="$(BlazorMetadataFilePath)" Condition="'$(BlazorEnableDebugging)'=='true'" Lines="debug:true" Overwrite="false" Encoding="Unicode" />
+  </Target>
+  
+</Project>

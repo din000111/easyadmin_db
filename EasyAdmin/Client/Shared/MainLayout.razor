@@ -1,0 +1,26 @@
+﻿@inherits LayoutComponentBase
+
+<AuthorizeView>
+    <Authorized>
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+
+        <div class="main" @onclick="Pages.BillingPage.UpdateGrid">
+            <div class="top-row px-4">
+                @*<a href="http://blazor.net" target="_blank" class="ml-md-auto">About</a>*@
+                <LoginControl />
+            </div>
+
+            <div class="content px-4">
+                @Body
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        @Body
+    </NotAuthorized>
+</AuthorizeView>
+<BlazoredModal />
+<MatBlazor.MatToastContainer />
+

@@ -1,0 +1,143 @@
+﻿@page "/config/costs"
+@using EasyAdmin.Client.Pages.Modals
+@using EasyAdmin.Shared.Common
+@using EasyAdmin.Client.Services
+@inject IApiService Api
+@inject IModalService Modal
+
+<h3>Настройки стоимости</h3>
+<div class="btn-group">
+    <button class="btn btn-primary mb-2"
+            @onclick="AddCost">
+        Добавить стоимость
+    </button>
+    <button class="btn btn-warning mb-2" disabled="@ButtonsDisabled" @onclick="EditCost">Изменить</button>
+    <button class="btn btn-danger mb-2" disabled="@ButtonsDisabled" @onclick="DeleteCostModal">Удалить</button>
+    <button class="btn btn-info mb-2" @onclick="Refresh">⟳</button>
+</div>
+<div class="col-lg-6 col-md-12">
+    @if (costs == null)
+    {
+    <p>Загрузка</p>
+    }
+    else {
+    <DataTable TableItem="Cost" Items="costs" OnSelect="HandleSelect" PageSize="5" @ref="dataTable">
+        <GridHeader>
+            <td>Адаптер</td>
+            <td>Датацентр</td>
+            <td>ЦП</td>
+            <td>ОЗУ</td>
+            <td>Диски</td>
+        </GridHeader>
+        <GridRow>
+            <td>@context.Adapter?.Name</td>
+            <td>@context.DatacenterName</td>
+            <td>@context.CpuCost    ₽</td>
+            <td>@context.MemoryCost    ₽</td>
+            <td>@context.HddCost    ₽</td>
+        </GridRow>
+    </DataTable>
+    }
+</div>
+
+@code {
+
+    List<Cost> costs;
+    Cost selectedCost;
+    List<Adapter> adapters;
+    Cost newCost = new Cost();
+    string ButtonsDisabled = "disabled";
+    DataTable<Cost> dataTable;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        costs = (await Api.GetCostsListAsync()).Result;
+        adapters = (await Api.GetAdaptersListAsync()).Result;
+    }
+    void HandleSelect(Cost cost)
+    {
+        selectedCost = cost;
+        ButtonsDisabled = cost != null ? null : "disabled";
+    }
+    private void AddCost()
+    {
+        var parameters = new ModalParameters();
+
+        parameters.Add("newCost", newCost);
+        parameters.Add("adapters", adapters);
+
+        Modal.Show<AddCostModal>("Настроить стоимость", parameters);
+        Modal.OnClose += SaveCost;
+    }
+    async void SaveCost(ModalResult modalResult)
+    {
+        Modal.OnClose -= SaveCost;
+        if (modalResult.Cancelled) return;
+        newCost = (Cost)modalResult.Data;
+        var createCostAttempt = await Api.CreateCostAsync(newCost);
+        if (createCostAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Настройки стоимости сохранены успешно");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<SuccessModal>("Не удалось сохранить настройки стоимости");
+        }
+    }
+
+    private void EditCost()
+    {
+        var parameters = new ModalParameters();
+        parameters.Add("cost", selectedCost);
+        Modal.Show<EditCostModal>("Редактировать стоимость", parameters);
+        Modal.OnClose += UpdateCost;
+    }
+    async void UpdateCost(ModalResult modalResult)
+    {
+        Modal.OnClose -= UpdateCost;
+        if (modalResult.Cancelled) return;
+
+        var updatedCost = (Cost)modalResult.Data;
+        var saveCostsAttempt = await Api.UpdateCostAsync(updatedCost);
+        if (saveCostsAttempt.isSuccess)
+        {
+            Modal.Show<SuccessModal>("Настройки стоимости изменены");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>("Не удалось изменить настройки стоимости");
+        }
+    }
+
+    private void DeleteCostModal()
+    {
+        Modal.OnClose += DeleteCost;
+        Modal.Show<AreYouSure>("Вы уверены, что хотите удалить настройки стоимости?");
+    }
+
+    private async void DeleteCost(ModalResult modalResult)
+    {
+        Modal.OnClose -= UpdateCost;
+        if (modalResult.Cancelled) return;
+        var deleteCostAttempt = await Api.DeleteCostAsync(selectedCost);
+        if (deleteCostAttempt.isSuccess && deleteCostAttempt.Result)
+        {
+            Modal.Show<SuccessModal>("Настройки стоимости удалены");
+            Refresh();
+        }
+        else
+        {
+            Modal.Show<ErrorModal>("Не удалось удалось настройки стоимости");
+        }        
+        Refresh();
+    }
+
+    async void Refresh()
+    {
+        costs = (await Api.GetCostsListAsync()).Result;
+        dataTable.Refresh(costs);
+    }
+}
